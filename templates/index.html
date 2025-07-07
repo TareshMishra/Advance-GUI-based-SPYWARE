@@ -1,0 +1,107 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Control Panel</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-terminal"></i> Remote Control Panel</h1>
+        
+        <div class="status-box">
+            <h2><i class="fas fa-plug"></i> Connection Status</h2>
+            <p id="connection-status" class="disconnected">
+                <span class="status-indicator"></span>
+                Disconnected
+            </p>
+        </div>
+        
+        <div class="command-box">
+            <h2><i class="fas fa-code"></i> Execute Command</h2>
+            <div class="command-input-group">
+                <input type="text" id="command-input" placeholder="Enter command (e.g., dir, ls, ipconfig)...">
+                <button id="execute-button"><i class="fas fa-play"></i> Execute</button>
+            </div>
+            <div id="command-output"></div>
+        </div>
+        
+        <div class="quick-commands">
+            <h2><i class="fas fa-bolt"></i> Quick Commands</h2>
+            <button class="quick-command" data-command="ipconfig"><i class="fas fa-network-wired"></i> ipconfig</button>
+            <button class="quick-command" data-command="netstat -ano"><i class="fas fa-project-diagram"></i> netstat</button>
+            <button class="quick-command" data-command="systeminfo"><i class="fas fa-info-circle"></i> systeminfo</button>
+            <button class="quick-command" data-command="get_system_info"><i class="fas fa-laptop-code"></i> System Info</button>
+            <button class="quick-command" data-command="tasklist"><i class="fas fa-tasks"></i> tasklist</button>
+            <button class="quick-command" data-command="whoami"><i class="fas fa-user"></i> whoami</button>
+        </div>
+    </div>
+
+    <script>
+        // Connect to WebSocket server
+        const socket = io();
+        
+        // Update connection status
+        socket.on('connect', () => {
+            const statusElement = document.getElementById('connection-status');
+            statusElement.textContent = 'Connected';
+            statusElement.className = 'connected';
+            statusElement.innerHTML = '<span class="status-indicator"></span> Connected';
+        });
+        
+        socket.on('disconnect', () => {
+            const statusElement = document.getElementById('connection-status');
+            statusElement.textContent = 'Disconnected';
+            statusElement.className = 'disconnected';
+            statusElement.innerHTML = '<span class="status-indicator"></span> Disconnected';
+        });
+        
+        socket.on('response', (data) => {
+            const output = document.getElementById('command-output');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            if (data.error) {
+                output.innerHTML += `
+                    <div class="error">
+                        <strong>[${timestamp}] Error:</strong> ${data.error}
+                    </div>
+                `;
+            } else {
+                output.innerHTML += `
+                    <div class="result">
+                        <strong>[${timestamp}] Result:</strong><br>
+                        ${data.result}
+                    </div>
+                `;
+            }
+            output.scrollTop = output.scrollHeight;
+        });
+        
+        // Execute command
+        document.getElementById('execute-button').addEventListener('click', () => {
+            const command = document.getElementById('command-input').value.trim();
+            if (command) {
+                socket.emit('command', { command });
+                document.getElementById('command-input').value = '';
+            }
+        });
+        
+        // Quick commands
+        document.querySelectorAll('.quick-command').forEach(button => {
+            button.addEventListener('click', () => {
+                const command = button.getAttribute('data-command');
+                socket.emit('command', { command });
+            });
+        });
+        
+        // Allow pressing Enter to execute command
+        document.getElementById('command-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('execute-button').click();
+            }
+        });
+    </script>
+</body>
+</html>
